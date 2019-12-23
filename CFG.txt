@@ -1,0 +1,22 @@
+Terminal:[ID,NUMBER,IF,ELSE,WHILE,LP,RP,ASSIGNOP,RELOP,RLUS,MINUS,STAR,DIV,COMMA,RETURN,SEMI]
+Variable:[Stmt,Exp,Args]
+%%
+Stmt : Exp SEMI
+Stmt : RETURN Exp SEMI
+Stmt : IF LP Exp RP Stmt
+Stmt : IF LP Exp RP Stmt ELSE Stmt
+Stmt : WHILE LP Exp RP Stmt   
+Exp : Exp ASSIGNOP Exp
+Exp : Exp RELOP Exp
+Exp : Exp PLUS Exp
+Exp : Exp MINUS Exp
+Exp : Exp STAR Exp
+Exp : Exp DIV Exp
+Exp : LP Exp RP
+Exp : ID LP Args RP
+Exp : ID LP RP
+Exp : ID
+Exp : NUMBER
+Args : Exp COMMA Args
+Args : Exp
+%%
