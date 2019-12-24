@@ -6,17 +6,22 @@
 #include<map>
 using namespace std;
 
+struct Grammar {
+	int head;
+	vector<int> child;
+};
+
+struct SyntaxNode {
+	string name;
+	vector<Grammar> g;
+	bool isTerminal;
+};
+
 class CFG {
 public:
 	CFG();
-	void OutputTokens(string line, ofstream &ofile);
-	string Str2Token(string str);
-	int NextState(int curState, char ch);
-	string StateToString(int state, string str);
-	string Ch2Type(char ch);
-	string ExtractReservedWord(string str);
 
 private:
-	// DFA have 17 states
-	vector<map<string, int>> mDFA;
+	vector<SyntaxNode> mNode;
+	vector<Grammar> mGrammar;
 };

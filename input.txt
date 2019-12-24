@@ -1,0 +1,10 @@
+int test(int _param1, int _param2) {
+	int a = 1, b_1 = 1029;
+	while(a <= b_1) {
+		if(a == 4) return 4;
+		else if(a == 6) return 6;
+		a = a + random();
+		b_1 = b_1 + a * 2341;
+	}
+	return 21345543;
+}
