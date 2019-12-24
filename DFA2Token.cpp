@@ -53,7 +53,7 @@ string DFA::Ch2Type(char ch) {
 }
 
 void DFA::OutputTokens(string line, vector<InputNode> &inputSequence) {
-	string curType;
+	/*string curType;
 	string nextType;
 	int begin, end;
 	for (begin = 0, end = 1; end < line.length();) {
@@ -108,7 +108,7 @@ void DFA::OutputTokens(string line, vector<InputNode> &inputSequence) {
 	if (begin < line.length()) {
 		ofile << Str2Token(line.substr(begin, end - begin)) << ":";
 		ofile << line.substr(begin, end - begin);
-	}
+	}*/
 }
 
 string DFA::Str2Token(string str) {
