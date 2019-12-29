@@ -1,1 +1,2 @@
-test = a+b+c;
+if(a == b) a = func(a, b , c);
+else return (a + 2 * 3 - test(2, 4));

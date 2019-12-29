@@ -1,14 +1,7 @@
 #include"CFG.h"
 
 CFG::CFG(void) {
-#ifndef DEBUG
-	string inputFileName;
-	cout << "Please input the CFG file name:" << endl;
-	getline(cin, inputFileName);
-	ifstream ifile(inputFileName, ios::in);
-#else
 	ifstream ifile("CFG.txt");
-#endif
 	string line;
 	bool isGrammar = false;
 	bool isInitial = false;
@@ -78,8 +71,6 @@ CFG::CFG(void) {
 	for (int i = 0; i < mNode.size(); i++)
 		if(!mNode[i]->isTerminal) ModifyFirst(i);
 
-	InputFollow();
-
 	CreateItemFamily();
 }
 bool CFG::IsFirstContain(vector<int>& first, const int index) {
@@ -90,27 +81,38 @@ bool CFG::IsFirstContain(vector<int>& first, const int index) {
 }
 void CFG::ModifyFirst(const int index) {
 	for (int i = 0; i < mNode[index]->first.size(); i++) {
+		//If FIRST[i] is terminal, don't need modify, continue
 		if (!mNode[mNode[index]->first[i]]->isTerminal) {
+			// This is to say: the FIRST index is equal to itself index
+			// For example: Exp->Exp PLUS Exp
+			// FIRST of Exp will also contain Exp, erase and continue
 			if (mNode[index]->first[i] == index) {
 				mNode[index]->first.erase(mNode[index]->first.begin() + i);
 				continue;
 			}
 			else {
+				//get FIRST[i]'s FIRST
 				vector<int>& next = mNode[mNode[index]->first[i]]->first;
 				for (int j = 0; j < next.size(); j++) {
 					if (!mNode[next[j]]->isTerminal) {
+						//if still variable, the recursion
 						ModifyFirst(next[j]);
+						//the recursion will deal with all of the variable
+						//so we can simply add all FIRST
 						for (int k = 0; k < mNode[next[j]]->first.size(); k++) {
-							mNode[index]->first.push_back(mNode[next[j]]->first[k]);
+							if(!IsFirstContain(mNode[index]->first, mNode[next[j]]->first[k]))
+								mNode[index]->first.push_back(mNode[next[j]]->first[k]);
 						}
 					}
 					else {
 						if (!IsFirstContain(mNode[index]->first, next[j])) {
-							mNode[index]->first.push_back(next[j]);
+							if (!IsFirstContain(mNode[index]->first, next[j]))
+								mNode[index]->first.push_back(next[j]);
 						}
 					}
 				}
 			}
+			//delete the variable in FIRST of index.
 			mNode[index]->first.erase(mNode[index]->first.begin() + i);
 		}
 	}
@@ -127,6 +129,23 @@ void CFG::Run(vector<InputNode*> &inputSequence, ofstream& ofile) {
 	while (!inputSequence.empty()) {
 		currentItem = stateStack[0];
 		vector<ItemNode*>& itemNode = mItemFamily[currentItem]->itemNode;
+		// check if can move
+		for (i = 0; i < itemNode.size(); i++) {
+			if (itemNode[i]->index >= mGrammar[itemNode[i]->grammar]->child.size()) continue;
+			if (mGrammar[itemNode[i]->grammar]->child[itemNode[i]->index] == inputSequence[0]->index) {
+				for (int j = 0; j < mItemFamily[currentItem]->gotoList.size(); j++) {
+					if (inputSequence[0]->index == mItemFamily[currentItem]->gotoList[j]->symbol) {
+						stateStack.insert(stateStack.begin(), mItemFamily[currentItem]->gotoList[j]->next);
+#ifdef DEBUG
+						cout << "Input :" << inputSequence[0]->content << ", state moves to " << stateStack[0] << endl;
+#endif
+						ofile << "Input :" << inputSequence[0]->content << ", state moves to " << stateStack[0] << endl;
+						inputSequence.erase(inputSequence.begin());
+						goto LabelContinue;
+					}
+				}
+			}
+		}
 		// check if can reduction
 		for (i = 0; i < itemNode.size(); i++) {
 			if (itemNode[i]->index == mGrammar[itemNode[i]->grammar]->child.size()) {
@@ -157,23 +176,6 @@ void CFG::Run(vector<InputNode*> &inputSequence, ofstream& ofile) {
 				}
 			}
 		}
-		// check if can move
-		for (i = 0; i < itemNode.size(); i++) {
-			if (itemNode[i]->index >= mGrammar[itemNode[i]->grammar]->child.size()) continue;
-			if (mGrammar[itemNode[i]->grammar]->child[itemNode[i]->index] == inputSequence[0]->index) {
-				for (int j = 0; j < mItemFamily[currentItem]->gotoList.size(); j++) {
-					if (inputSequence[0]->index == mItemFamily[currentItem]->gotoList[j]->symbol) {
-						stateStack.insert(stateStack.begin(), mItemFamily[currentItem]->gotoList[j]->next);
-#ifdef DEBUG
-						cout << "Input :" << inputSequence[0]->content << ", state moves to " << stateStack[0] << endl;
-#endif
-						ofile << "Input :" << inputSequence[0]->content << ", state moves to " << stateStack[0] << endl;
-						inputSequence.erase(inputSequence.begin());
-						goto LabelContinue;
-					}
-				}
-			}
-		}
 		//error handle
 		cout << "Reduction failed" << endl;
 		cout << "The input file can't satisfy the CFG requiement" << endl;
@@ -184,29 +186,16 @@ void CFG::Run(vector<InputNode*> &inputSequence, ofstream& ofile) {
 	LabelContinue:;
 	}
 }
-void CFG::InputFollow(void) {
-	ifstream ifile("follow.txt");
-	string line;
-
-	while (getline(ifile, line)) {
-		vector<string> input;
-		StringSplit(line, input, ":");
-		int head = FindNode(input[0]);
-
-		vector<string> tokens;
-		StringSplit(input[1], tokens, " ");
-
-		for (int i = 0; i < tokens.size(); i++) {
-			mNode[head]->follow.push_back(FindNode(tokens[i]));
-		}
-	}
-}
 void CFG::CalcFirst(const int index) {
 	if (mNode[index]->isTerminal) {
+		//If node is terminal, its first is itself
 		mNode[index]->first.push_back(index);
 	}
 	else {
+		//If node is Variable, then need to go through its grammar
 		for (int i = 0; i < mNode[index]->grammar.size(); i++) {
+			//mNode[index]->grammar contains all grammar that head is mNode[index]
+			//so the first child's FIRST is its FIRST
 			vector<int>& child = mGrammar[mNode[index]->grammar[i]]->child;
 			if(!IsFirstContain(index, child[0]))
 				mNode[index]->first.push_back(child[0]);
@@ -299,15 +288,20 @@ void CFG::GOTO(const int itemIndex, const int nodeIndex) {
 	}
 	if (newItem->itemNode.size() == 0) return;
 	CLOSURE(newItem);
-	if (!IsItemFamilyContain(newItem)) mItemFamily.push_back(newItem);
+	int gotoNext = IsItemFamilyContain(newItem);
+	if (gotoNext == -1) {
+		mItemFamily.push_back(newItem);
+		gotoNext = mItemFamily.size() - 1;
+	}
 	GotoNode *newGoto = new GotoNode;
-	newGoto->next = mItemFamily.size() - 1;
+	//Need to fix
+	newGoto->next = gotoNext;
 	newGoto->symbol = nodeIndex;
 	mItemFamily[itemIndex]->gotoList.push_back(newGoto);
 }
-bool CFG::IsItemFamilyContain(Item* newItem) {
+int CFG::IsItemFamilyContain(Item* newItem) {
 	//Need to check
-	bool flag = false;
+	int flag = -1;
 	vector<ItemNode*>& target = newItem->itemNode;
 	for (int i = 0; i < mItemFamily.size(); i++) {
 		vector<ItemNode*>& source = mItemFamily[i]->itemNode;
@@ -324,7 +318,7 @@ bool CFG::IsItemFamilyContain(Item* newItem) {
 		}
 		// There is a item every grammar, index and symbol is equal
 		// to new item, so repeat.
-		flag = true;
+		flag = i; break;
 	L1:continue;
 	}
 	return flag;
@@ -368,7 +362,10 @@ void CFG::PrintGrammar(int index, ofstream& ofile) {
 #endif
 		ofile << mNode[mGrammar[index]->child[i]]->name << " ";
 	}
+#ifdef DEBUG
 	cout << endl;
+#endif
+	ofile << endl;
 }
 void CFG::StringSplit(const string& s, vector<string>& tokens, const string& delimiters)
 {
