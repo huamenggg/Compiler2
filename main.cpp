@@ -7,7 +7,7 @@ int main() {
 	DFA dfa;
 	CFG cfg;
 	string inputFileName;
-	vector<InputNode> inputSequence;
+	vector<InputNode*> inputSequence;
 #ifndef DEBUG
 	cout << "Please input the program file name:" << endl;
 	getline(cin, inputFileName);
@@ -26,10 +26,14 @@ int main() {
 		system("pause");
 		exit(-1);
 	}
-	/*while (getline(ifile, line)) {
-		dfa.OutputTokens(line, inputSequence);
-	}*/
-	cfg.PrintAllGrammar();
+	while (getline(ifile, line)) {
+		dfa.OutputTokens(line, inputSequence, cfg);
+	}
+	InputNode *newNode = new InputNode;
+	newNode->content = "";
+	newNode->index = cfg.FindNode("$");
+	inputSequence.push_back(newNode);
+	cfg.Run(inputSequence, reductionFile);
 	ifile.close();
 	reductionFile.close();
 	system("pause");

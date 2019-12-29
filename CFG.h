@@ -1,4 +1,5 @@
 #pragma once
+
 #include<iostream>
 #include<fstream>
 #include<string>
@@ -7,6 +8,8 @@
 #include<algorithm>
 #include"DFA2Token.h"
 using namespace std;
+
+struct InputNode;
 
 struct Grammar {
 	int head;
@@ -42,8 +45,7 @@ public:
 	CFG(void);
 	void StringSplit(const string& s, vector<string>& tokens, const string& delimiters);
 	int FindNode(const string& s);
-	void PrintGrammar(int index);
-	void PrintAllGrammar(void);
+	void PrintGrammar(int index, ofstream& ofile);
 	void CreateItemFamily(void);
 	void CalcFirst(const int index);
 	void InputFollow(void);
@@ -51,8 +53,12 @@ public:
 	void CLOSURE(Item *item);
 	void GOTO(const int itemIndex, const int nodeIndex);
 	bool IsItemFamilyContain(Item* newItem);
-	bool CanAddMoreItem(void);
-	bool IsItemNodeContain(const int index, Item* item);
+	bool CanAddMoreItem(const int num);
+	bool IsItemNodeContain(const int index, Item* item, vector<int>& nextsymbol);
+	void Run(vector<InputNode*>& inputSequence, ofstream& ofile);
+	void ModifyFirst(const int index);
+	bool IsFirstContain(vector<int>& first, const int index);
+	bool IsSymbolContain(const int index, const int target, Item* item);
 
 private:
 	vector<SyntaxNode*> mNode;

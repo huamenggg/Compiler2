@@ -52,8 +52,8 @@ string DFA::Ch2Type(char ch) {
 	return string(1, ch);
 }
 
-void DFA::OutputTokens(string line, vector<InputNode> &inputSequence) {
-	/*string curType;
+void DFA::OutputTokens(string line, vector<InputNode*> &inputSequence, CFG& cfg) {
+	string curType;
 	string nextType;
 	int begin, end;
 	for (begin = 0, end = 1; end < line.length();) {
@@ -66,8 +66,10 @@ void DFA::OutputTokens(string line, vector<InputNode> &inputSequence) {
 		if (line[begin] == '<' || line[begin] == '>'
 			|| line[begin] == '!' || line[begin] == '=') {
 			if (line[end] == '=') {
-				ofile << Str2Token(line.substr(begin, end - begin + 1)) << ":";
-				ofile << line.substr(begin, end - begin + 1) << "\t";
+				InputNode *newNode = new InputNode;
+				newNode->index = cfg.FindNode(Str2Token(line.substr(begin, end - begin + 1)));
+				newNode->content = line.substr(begin, end - begin + 1);
+				inputSequence.push_back(newNode);
 				begin = end + 1;
 				end += 2;
 				continue;
@@ -77,15 +79,19 @@ void DFA::OutputTokens(string line, vector<InputNode> &inputSequence) {
 		//current char can't be part of ID or Number, output
 		curType = Ch2Type(line[begin]);
 		if (curType != "L" && curType != "D" && curType != "_") {
-			ofile << Str2Token(line.substr(begin, 1)) << ":";
-			ofile << line.substr(begin, 1) << "\t";
+			InputNode *newNode = new InputNode;
+			newNode->index = cfg.FindNode(Str2Token(line.substr(begin, 1)));
+			newNode->content = line.substr(begin, 1);
+			inputSequence.push_back(newNode);
 			begin++; end++; continue;
 		}
 
 		//end is ' ', output before string
 		if (line[end] == ' ' || line[end] == '\t') {
-			ofile << Str2Token(line.substr(begin, end - begin)) << ":";
-			ofile << line.substr(begin, end - begin) << "\t";
+			InputNode *newNode = new InputNode;
+			newNode->index = cfg.FindNode(Str2Token(line.substr(begin, end - begin)));
+			newNode->content = line.substr(begin, end - begin);
+			inputSequence.push_back(newNode);
 			begin = end + 1;
 			end += 2;
 			continue;
@@ -93,11 +99,15 @@ void DFA::OutputTokens(string line, vector<InputNode> &inputSequence) {
 
 		nextType = Ch2Type(line[end]);
 		if (nextType != "L" && nextType != "D" && nextType != "_") {
-			ofile << Str2Token(line.substr(begin, end - begin)) << ":";
-			ofile << line.substr(begin, end - begin) << "\t";
+			InputNode *newNode = new InputNode;
+			newNode->index = cfg.FindNode(Str2Token(line.substr(begin, end - begin)));
+			newNode->content = line.substr(begin, end - begin);
+			inputSequence.push_back(newNode);
 
-			ofile << Str2Token(line.substr(end, 1)) << ":";
-			ofile << line.substr(end, 1) << "\t";
+			newNode = new InputNode;
+			newNode->index = cfg.FindNode(Str2Token(line.substr(end, 1)));
+			newNode->content = line.substr(end, 1);
+			inputSequence.push_back(newNode);
 			begin = end + 1;
 			end += 2;
 			continue;
@@ -106,9 +116,11 @@ void DFA::OutputTokens(string line, vector<InputNode> &inputSequence) {
 		end++;
 	}
 	if (begin < line.length()) {
-		ofile << Str2Token(line.substr(begin, end - begin)) << ":";
-		ofile << line.substr(begin, end - begin);
-	}*/
+		InputNode *newNode = new InputNode;
+		newNode->index = cfg.FindNode(Str2Token(line.substr(begin, end - begin)));
+		newNode->content = line.substr(begin, end - begin);
+		inputSequence.push_back(newNode);
+	}
 }
 
 string DFA::Str2Token(string str) {

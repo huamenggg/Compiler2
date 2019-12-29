@@ -1,7 +1,14 @@
 #include"CFG.h"
 
 CFG::CFG(void) {
+#ifndef DEBUG
+	string inputFileName;
+	cout << "Please input the CFG file name:" << endl;
+	getline(cin, inputFileName);
+	ifstream ifile(inputFileName, ios::in);
+#else
 	ifstream ifile("CFG.txt");
+#endif
 	string line;
 	bool isGrammar = false;
 	bool isInitial = false;
@@ -68,10 +75,114 @@ CFG::CFG(void) {
 	mNode.push_back(endSymbol);
 
 	for (int i = 0; i < mNode.size(); i++)CalcFirst(i);
+	for (int i = 0; i < mNode.size(); i++)
+		if(!mNode[i]->isTerminal) ModifyFirst(i);
+
 	InputFollow();
 
 	CreateItemFamily();
-	cout << endl;
+}
+bool CFG::IsFirstContain(vector<int>& first, const int index) {
+	for (int i = 0; i < first.size(); i++) {
+		if (first[i] == index)return true;
+	}
+	return false;
+}
+void CFG::ModifyFirst(const int index) {
+	for (int i = 0; i < mNode[index]->first.size(); i++) {
+		if (!mNode[mNode[index]->first[i]]->isTerminal) {
+			if (mNode[index]->first[i] == index) {
+				mNode[index]->first.erase(mNode[index]->first.begin() + i);
+				continue;
+			}
+			else {
+				vector<int>& next = mNode[mNode[index]->first[i]]->first;
+				for (int j = 0; j < next.size(); j++) {
+					if (!mNode[next[j]]->isTerminal) {
+						ModifyFirst(next[j]);
+						for (int k = 0; k < mNode[next[j]]->first.size(); k++) {
+							mNode[index]->first.push_back(mNode[next[j]]->first[k]);
+						}
+					}
+					else {
+						if (!IsFirstContain(mNode[index]->first, next[j])) {
+							mNode[index]->first.push_back(next[j]);
+						}
+					}
+				}
+			}
+			mNode[index]->first.erase(mNode[index]->first.begin() + i);
+		}
+	}
+}
+void CFG::Run(vector<InputNode*> &inputSequence, ofstream& ofile) {
+	int currentItem = 0;
+	int i;
+	vector<int> stateStack;
+	stateStack.push_back(0);
+#ifdef DEBUG
+	cout << "start state:" << currentItem << endl;
+#endif
+	ofile << "start state:" << currentItem << endl;
+	while (!inputSequence.empty()) {
+		currentItem = stateStack[0];
+		vector<ItemNode*>& itemNode = mItemFamily[currentItem]->itemNode;
+		// check if can reduction
+		for (i = 0; i < itemNode.size(); i++) {
+			if (itemNode[i]->index == mGrammar[itemNode[i]->grammar]->child.size()) {
+				for (int j = 0; j < itemNode[i]->symbol.size(); j++) {
+					if (itemNode[i]->symbol[j] == inputSequence[0]->index) {
+#ifdef DEBUG
+						cout << "Reduction as :";
+#endif
+						ofile << "Reduction as :";
+						PrintGrammar(itemNode[i]->grammar, ofile);
+						InputNode *newNode = new InputNode;
+						newNode->index = mGrammar[itemNode[i]->grammar]->head;
+						newNode->content = mNode[newNode->index]->name;
+						inputSequence.insert(inputSequence.begin(), newNode);
+
+						for (int k = 0; k < mGrammar[itemNode[i]->grammar]->child.size(); k++) {
+							stateStack.erase(stateStack.begin());
+						}
+
+						if (inputSequence[0]->index == FindNode("_S")
+							&& inputSequence[1]->index == FindNode("$")) {
+							cout << "Reduction Succeed!!" << endl;
+							ofile << "Reduction Succeed!!" << endl;
+							return;
+						}
+						goto LabelContinue;
+					}
+				}
+			}
+		}
+		// check if can move
+		for (i = 0; i < itemNode.size(); i++) {
+			if (itemNode[i]->index >= mGrammar[itemNode[i]->grammar]->child.size()) continue;
+			if (mGrammar[itemNode[i]->grammar]->child[itemNode[i]->index] == inputSequence[0]->index) {
+				for (int j = 0; j < mItemFamily[currentItem]->gotoList.size(); j++) {
+					if (inputSequence[0]->index == mItemFamily[currentItem]->gotoList[j]->symbol) {
+						stateStack.insert(stateStack.begin(), mItemFamily[currentItem]->gotoList[j]->next);
+#ifdef DEBUG
+						cout << "Input :" << inputSequence[0]->content << ", state moves to " << stateStack[0] << endl;
+#endif
+						ofile << "Input :" << inputSequence[0]->content << ", state moves to " << stateStack[0] << endl;
+						inputSequence.erase(inputSequence.begin());
+						goto LabelContinue;
+					}
+				}
+			}
+		}
+		//error handle
+		cout << "Reduction failed" << endl;
+		cout << "The input file can't satisfy the CFG requiement" << endl;
+
+		ofile << "Reduction failed" << endl;
+		ofile << "The input file can't satisfy the CFG requiement" << endl;
+		return;
+	LabelContinue:;
+	}
 }
 void CFG::InputFollow(void) {
 	ifstream ifile("follow.txt");
@@ -112,14 +223,15 @@ bool CFG::IsFirstContain(const int index, const int target) {
 bool SortItem(ItemNode* a, ItemNode* b) {
 	return a->grammar < b->grammar;
 }
-bool CFG::CanAddMoreItem(void) {
+bool CFG::CanAddMoreItem(const int num) {
 	//TODO: need to judge if can add more
 	// because the time complexity will be high
 	// and generally, one time will be enough
-	return true;
+	return false;
 }
 void CFG::CLOSURE(Item *item) {
 	vector<int> nextsymbol;
+	int num = 0;
 	do {
 		for (int i = 0; i < item->itemNode.size(); i++) {
 			int index = item->itemNode[i]->index;
@@ -135,7 +247,7 @@ void CFG::CLOSURE(Item *item) {
 			}
 			sort(nextsymbol.begin(), nextsymbol.end());
 			int nodeIndex = mGrammar[grammarIndex]->child[index];
-			if (IsItemNodeContain(nodeIndex, item)) continue;
+			if (IsItemNodeContain(nodeIndex, item, nextsymbol)) continue;
 			vector<int>& grammar = mNode[nodeIndex]->grammar;
 			for (int j = 0; j < grammar.size(); j++) {
 				ItemNode *newNode = new ItemNode;
@@ -145,14 +257,30 @@ void CFG::CLOSURE(Item *item) {
 				item->itemNode.push_back(newNode);
 			}
 		}
-	} while (!CanAddMoreItem());
+	} while (CanAddMoreItem(num));
 	sort(item->itemNode.begin(), item->itemNode.end(), SortItem);
 }
-bool CFG::IsItemNodeContain(const int index, Item* item) {
-	for (int i = 0; i < item->itemNode.size(); i++) {
-		if (index == mGrammar[item->itemNode[i]->grammar]->head && item->itemNode[i]->index == 0) return true;
+bool CFG::IsSymbolContain(const int index, const int target, Item* item) {
+	for (int i = 0; i < item->itemNode[index]->symbol.size(); i++) {
+		if (item->itemNode[index]->symbol[i] == target)return true;
 	}
 	return false;
+}
+bool CFG::IsItemNodeContain(const int index, Item* item, vector<int>& nextsymbol) {
+	bool flag = false;
+	for (int i = 0; i < item->itemNode.size(); i++) {
+		if (index == mGrammar[item->itemNode[i]->grammar]->head
+			&& item->itemNode[i]->index == 0) {
+			flag = true;
+			for (int j = 0; j < nextsymbol.size(); j++) {
+				if (!IsSymbolContain(i, nextsymbol[j], item)) {
+					item->itemNode[i]->symbol.push_back(nextsymbol[j]);
+				}
+			}
+			sort(item->itemNode[i]->symbol.begin(), item->itemNode[i]->symbol.end());
+		}
+	}
+	return flag;
 }
 void CFG::GOTO(const int itemIndex, const int nodeIndex) {
 	Item *newItem = new Item;
@@ -229,15 +357,18 @@ int CFG::FindNode(const string& s) {
 	system("pause");
 	exit(-1);
 }
-void CFG::PrintGrammar(int index) {
-	cout << mNode[mGrammar[index]->head]->name << " : ";
+void CFG::PrintGrammar(int index, ofstream& ofile) {
+#ifdef DEBUG
+	cout << mNode[mGrammar[index]->head]->name << " -> ";
+#endif
+	ofile << mNode[mGrammar[index]->head]->name << " -> ";
 	for (int i = 0; i < mGrammar[index]->child.size(); i++) {
+#ifdef DEBUG
 		cout << mNode[mGrammar[index]->child[i]]->name << " ";
+#endif
+		ofile << mNode[mGrammar[index]->child[i]]->name << " ";
 	}
 	cout << endl;
-}
-void CFG::PrintAllGrammar() {
-	for (int i = 0; i < mGrammar.size(); i++) PrintGrammar(i);
 }
 void CFG::StringSplit(const string& s, vector<string>& tokens, const string& delimiters)
 {
